@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0e1412;
+  --panel: #161d1a;
+  --panel-border: #262f2b;
+  --grid-line: #1e2723;
+  --text-primary: #eaf0ec;
+  --text-muted: #8fa39a;
+  --safe: #4fd1ae;
+  --warn: #e8b23d;
+  --danger: #e85d3d;
+  --hazard: #c23b4f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 42px 42px;
+  color: var(--text-primary);
+  font-family: "IBM Plex Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: "Big Shoulders Display", sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.font-mono-data {
+  font-family: "IBM Plex Mono", monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--panel);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--panel-border);
+  border-radius: 4px;
+}
+
+/* Focus visibility for keyboard nav */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--safe);
+  outline-offset: 2px;
+}
+
+.leaflet-container {
+  background: #0b100e !important;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

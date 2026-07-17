@@ -1,0 +1,22 @@
+{
+  "name": "smellnet-backend",
+  "version": "1.0.0",
+  "description": "SmellNet API - Odour Quality Index for Indian cities",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "morgan": "^1.11.0",
+    "node-cron": "^4.6.0",
+    "pg": "^8.22.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
