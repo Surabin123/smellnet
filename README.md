@@ -1,134 +1,136 @@
-# SmellNet — AI & IoT Odour Monitoring System
+# SmellNet
 
-India's first simulated **Odour Quality Index (OQI)**: synthetic IoT
-Electronic Nose data across 100+ Indian cities, aggregated with SQL, and
-visualized on an interactive dashboard (map heatmap + trend charts).
+SmellNet is a data-pipeline and dashboard prototype for exploring a simulated Odour Quality Index (OQI). A Python generator creates synthetic sensor readings for Indian cities, PostgreSQL stores and aggregates them, an Express API serves the data, and a React dashboard visualizes city-level patterns.
 
+> **Data limitation:** This repository uses generated data, not measurements from deployed electronic-nose sensors. OQI breakpoints are illustrative and inspired by AQI-style interpolation; this is not a validated health, regulatory, or environmental monitoring index.
+
+## Features
+
+- Generate city, sensor, and hourly gas-reading CSV data with a Python simulator.
+- Load the dataset into PostgreSQL using the schema and loader scripts.
+- Calculate OQI values from H2S, NH3, VOC, CH4, and CO channels using piecewise breakpoint interpolation; the highest channel sub-index determines the composite value.
+- Serve overview, heatmap, hotspot, city, trend, and peak-hour results through an Express API.
+- Explore city readings on a React/Vite map and dashboard with Leaflet and Recharts.
+
+The project does not ingest real IoT devices and does not provide alerting or decision support for public-health or municipal operations.
+
+## Data flow and architecture
+
+```mermaid
+flowchart LR
+  Sim[Python simulator] --> CSV[Cities, sensors, readings CSV]
+  CSV --> Load[PostgreSQL loader]
+  Schema[PostgreSQL schema and SQL] --> DB[(PostgreSQL)]
+  Load --> DB
+  DB --> API[Express API]
+  API --> UI[React + Vite dashboard]
 ```
-Python (data simulation) → PostgreSQL (SQL aggregation) → Express API → React dashboard
+
+The frontend requests `/api/...` paths through the Vite development proxy. The backend uses `pg` and reads `DATABASE_URL`/`PORT` from its environment. Database aggregation lives in `database/schema.sql` and the backend query module.
+
+## Repository structure
+
+```text
+data-simulator/   Python city/data generator and PostgreSQL loader
+database/         PostgreSQL schema and aggregation queries
+backend/src/      Express server, routes, controllers, and PostgreSQL pool
+frontend/src/     React dashboard, map, charts, API client, and styling
 ```
 
-## Project structure
+## Prerequisites
 
-```
-smellnet/
-├── data-simulator/       # Python: generates realistic sensor + OQI data
-│   ├── cities_india.py   # 130 Indian cities with coordinates & zone type
-│   ├── generate_data.py  # builds cities.csv / sensors.csv / readings.csv
-│   └── load_to_postgres.py
-├── database/
-│   └── schema.sql        # tables + reference SQL aggregation queries
-├── backend/               # Node.js + Express REST API (PostgreSQL)
-│   └── src/
-├── frontend/               # React + Vite + Tailwind + Leaflet + Recharts
-│   └── src/
-└── README.md               (this file)
-```
+- Python 3 (the repository does not pin a minimum version; the loader requires `psycopg2-binary`).
+- Node.js 20+ and npm for the API and frontend.
+- PostgreSQL with `createdb` and `psql` available on `PATH`.
 
-## 1. Set up PostgreSQL
+## Local setup (PowerShell)
 
-```bash
-# create the database
+Run commands from the repository root unless a directory change is shown.
+
+### 1. Create a local database and load the schema
+
+```powershell
 createdb smellnet
-
-# load the schema
-psql -d smellnet -f database/schema.sql
+psql -d smellnet -f .\database\schema.sql
 ```
 
-If you don't have Postgres locally, the quickest path is a free instance on
-[Neon](https://neon.tech) or [Supabase](https://supabase.com) — copy the
-connection string they give you and use it as `DATABASE_URL` below.
+**Important:** `database/schema.sql` begins by dropping the `readings`, `sensors`, and `cities` tables. Use a new/empty database; rerunning it deletes those tables and their data.
 
-## 2. Generate and load the sensor data
+### 2. Generate and import synthetic readings
 
-```bash
-cd data-simulator
-pip install psycopg2-binary
-
-# generate 30 days of hourly readings for 3 sensors per city (~700k rows)
-python generate_data.py --days 30 --sensors-per-city 3
-
-# load into Postgres
-python load_to_postgres.py --dsn "postgresql://user:pass@localhost:5432/smellnet"
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install psycopg2-binary
+python .\data-simulator\generate_data.py --days 7 --sensors-per-city 3
+python .\data-simulator\load_to_postgres.py --dsn "postgresql://postgres:YOUR_PASSWORD@localhost:5432/smellnet"
 ```
 
-Tune `--days` and `--sensors-per-city` down (e.g. `--days 7`) if you want a
-smaller, faster-loading dataset for a demo.
+The generator accepts `--days` and `--sensors-per-city`; start with a smaller dataset while validating the local PostgreSQL setup.
 
-## 3. Run the backend API
+### 3. Configure and run the API
 
-```bash
-cd backend
+```powershell
+Set-Location backend
 npm install
-cp .env.example .env        # then edit DATABASE_URL to match your DB
-npm start                   # runs on http://localhost:5000
+Copy-Item .env.example .env
 ```
 
-Quick check: `curl http://localhost:5000/api/overview` should return JSON.
+Edit `backend/.env`:
 
-## 4. Run the frontend
+| Variable | Purpose | Example |
+|---|---|---|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:YOUR_PASSWORD@localhost:5432/smellnet` |
+| `PORT` | API listening port | `5000` |
 
-```bash
-cd frontend
+Then start the server:
+
+```powershell
+npm run dev
+```
+
+The API listens on `http://localhost:5000`. A basic health response is available at `/`.
+
+### 4. Run the dashboard
+
+In another PowerShell window:
+
+```powershell
+Set-Location path\to\smellnet\frontend
 npm install
-npm run dev                 # runs on http://localhost:5173
+npm run dev
 ```
 
-The Vite dev server proxies `/api` to `http://localhost:5000`, so just open
-`http://localhost:5173`.
+Open `http://localhost:5173`. The Vite configuration proxies `/api` to the local API on port `5000`.
 
-## How the OQI is calculated
+## API reference
 
-Each sensor reports five gas channels (H2S, NH3, VOC, CH4, CO — the same
-channels a real MQ-series electronic nose array reports). Each gas value is
-converted to a 0–500 sub-index via breakpoint interpolation (same method
-India's CPCB uses for AQI), and the **OQI is the maximum sub-index** — the
-single worst pollutant decides the city's odour category, exactly like AQI:
+All endpoints below are implemented under the `/api` prefix.
 
-| OQI range | Category |
-|---|---|
-| 0–50 | Good |
-| 51–100 | Moderate |
-| 101–200 | Poor |
-| 201–300 | Severe |
-| 301–500 | Hazardous |
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/overview` | Aggregate overview and city/sensor summary |
+| `GET` | `/api/heatmap` | Latest city-level values for the map |
+| `GET` | `/api/hotspots?days=7&limit=10` | Rank cities by recent average OQI |
+| `GET` | `/api/cities?state=&zone=` | List/filter cities |
+| `GET` | `/api/city/:id` | City details and recent readings |
+| `GET` | `/api/city/:id/trend?days=14` | Daily trend for one city |
+| `GET` | `/api/city/:id/peak-hours` | OQI grouping by hour of day |
 
-The simulator biases gas levels by each city's zone type (Industrial /
-Commercial / Residential / Mixed) and gives ~15% of sensors a "hotspot"
-multiplier (near a drain, dump, or industrial outfall) so the map shows
-realistic recurring clusters instead of uniform noise — this is what the
-"recurring pollution hotspot" pattern in the resume bullet refers to.
+The API is read-only for dashboard queries; no authentication or write endpoint for live sensor ingestion was found in the inspected routes.
 
-## API endpoints
+## Testing and deployment
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/overview` | National average OQI, sensor/city counts, category split |
-| `GET /api/heatmap` | Latest OQI per city, for the map |
-| `GET /api/hotspots?days=7&limit=10` | Worst cities ranked by avg OQI |
-| `GET /api/cities?state=&zone=` | Filterable city list |
-| `GET /api/city/:id` | City detail + recent raw readings |
-| `GET /api/city/:id/trend?days=14` | Daily OQI trend for one city |
-| `GET /api/city/:id/peak-hours` | Hour-of-day OQI pattern for one city |
+No test scripts or test suite were found in the backend or frontend package manifests. The manifests provide API `start`/`dev` and frontend `dev`/`build`/`preview` scripts. No Docker or hosted deployment configuration was found in the repository tree inspected.
 
-## What to say about this in interviews / your resume
+```powershell
+# Frontend production build
+Set-Location frontend
+npm run build
+```
 
-- You designed a **composite index** (OQI) using CPCB-AQI-style breakpoint
-  interpolation across 5 gas channels — not just averaging raw values.
-- You wrote **SQL aggregation queries** (window functions via `LATERAL`
-  joins for "latest reading per city", `GROUP BY` + `AVG` for hotspot
-  ranking, `EXTRACT(HOUR ...)` for peak-time analysis).
-- You built a **geospatial dashboard** (Leaflet) and **trend visualizations**
-  (Recharts) consuming a REST API you designed.
-- Data is currently simulated (clearly documented as such) because you don't
-  have physical e-nose hardware — the pipeline is built so real sensor data
-  could be swapped in without changing the schema or API.
+This only builds the frontend assets; it does not deploy the API or database. I have not run this build in the documentation-preparation workspace.
 
-## Notes on scope
+## License
 
-This is intentionally sized for a student portfolio project: one Postgres
-database, one Express service, one React app. If you want to extend it:
-- Swap the simulator for a real MQ-135/MQ-136 sensor + ESP32 publishing to
-  the same `readings` table via a small ingestion endpoint.
-- Add authentication for a "municipal team" login.
-- Add a `POST /api/alerts` that fires when a city crosses into Severe/Hazardous.
+No root `LICENSE` file was present in the inspected tree. The backend package declares ISC, but that alone does not establish a repository-wide license for the frontend, simulator, or data. Confirm project ownership and add an appropriate root license before inviting reuse.
