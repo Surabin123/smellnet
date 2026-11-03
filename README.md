@@ -1,5 +1,10 @@
 # SmellNet
 
+![Python](https://img.shields.io/badge/Python-3776AB?style=flat-square&logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white)
+![Express](https://img.shields.io/badge/Express-111111?style=flat-square&logo=express&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB)
+
 SmellNet is a data-pipeline and dashboard prototype for exploring a simulated Odour Quality Index (OQI). A Python generator creates synthetic sensor readings for Indian cities, PostgreSQL stores and aggregates them, an Express API serves the data, and a React dashboard visualizes city-level patterns.
 
 > **Data limitation:** This repository uses generated data, not measurements from deployed electronic-nose sensors. OQI breakpoints are illustrative and inspired by AQI-style interpolation; this is not a validated health, regulatory, or environmental monitoring index.
@@ -129,7 +134,7 @@ Set-Location frontend
 npm run build
 ```
 
-This only builds the frontend assets; it does not deploy the API or database. I have not run this build in the documentation-preparation workspace.
+This builds the frontend assets only; it does not deploy the API or database.
 
 ## License
 
